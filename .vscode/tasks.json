@@ -1,0 +1,31 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build c++ project",
+            "type": "shell",
+            "command": "g++",
+            "linux": {
+                
+            },
+            "windows": {
+                "args": [
+                    "-DUNICODE",
+                    "-D_UNICODE",
+                    "-D_WIN32",
+                    "-g", 
+                    "-pthread",
+                    "-std=c++14" , 
+                    "-I.",
+                    "*.cpp"    
+                ]
+            },
+            "group": {                
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
