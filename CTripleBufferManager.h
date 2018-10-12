@@ -44,12 +44,6 @@ private:
   size_t _buffer_size;
 };
 
-enum teContainerState {
-  cs_LockedForReading,
-  cs_LockedForWriting,
-  cs_AvailableForNextWriting
-};
-
 // pimpl buffer container state manager
 class CTripleBuffContainer;
 
@@ -74,7 +68,6 @@ protected :
   std::vector<CTripleBuffContainer> buffTripleContainer;
     
   std::mutex itsCMutex;
-  int nAvailableBuffIndex;
   int nReadingBuffIndex;
   int nWritingBuffIndex;
 };

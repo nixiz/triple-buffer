@@ -7,6 +7,12 @@
 #define _ASSERT assert
 #endif
 
+enum teContainerState {
+  cs_LockedForReading,
+  cs_LockedForWriting,
+  cs_AvailableForNextWriting
+};
+
 class CTripleBuffContainer {
 public:
   CTripleBuffContainer();
@@ -91,7 +97,6 @@ void CTripleBuffContainer::SetState(const teContainerState& par_eState) {
 }
 
 CTripleBufferManager::CTripleBufferManager(int par_nColumnSize, int par_nRowSize, int par_nDefaultValue) : 
-  nAvailableBuffIndex(1),
   nReadingBuffIndex(0),
   nWritingBuffIndex(0),
   buffTripleContainer(BUFFER_CONTAINER_SIZE) {
@@ -112,45 +117,34 @@ CTripleBufferManager::~CTripleBufferManager() {
 }
 
 CBuffer * CTripleBufferManager::GetNewReadingBuffer() {
-  itsCMutex.lock();
-  int nAvailableBuffIndexPre = GetIndexForFirstAvailableForReading();
-  itsCMutex.unlock();
+  int nAvailableBuffIndex = GetIndexForFirstAvailableForReading();
 
   // If there is no available frame
-  if(nAvailableBuffIndexPre < 0) return nullptr;
+  if(nAvailableBuffIndex < 0) return nullptr;
                  
   buffTripleContainer[nReadingBuffIndex].SetState(cs_AvailableForNextWriting);
-  nAvailableBuffIndex = nReadingBuffIndex;
     
-  buffTripleContainer[nAvailableBuffIndexPre].SetState(cs_LockedForReading);
-  nReadingBuffIndex = nAvailableBuffIndexPre;  
+  buffTripleContainer[nAvailableBuffIndex].SetState(cs_LockedForReading);
+  nReadingBuffIndex = nAvailableBuffIndex;  
     
   return buffTripleContainer[nReadingBuffIndex].GetBuffer();
 }
 
 CBuffer * CTripleBufferManager::GetNewWritingBuffer() {    
   // set currently writing state buffer as ready for reading
-  itsCMutex.lock();
-  int nAvailableBuffIndexPre = GetIndexForFirstAvailableForWriting(); 
-  itsCMutex.unlock();
-  _ASSERT(nAvailableBuffIndexPre >= 0);    
-    
-  // Copy the content of Reading buffer to the Writing buffer
-  // uncomment if u want to use latest written data in buffer for next writing slot
-  //buffTripleContainer[nReadingBuffIndex].GetBuffer()->CopyFrom(*(buffTripleContainer[nWritingBuffIndex].GetBuffer())); 
+  int nAvailableBuffIndex = GetIndexForFirstAvailableForWriting();
+  _ASSERT(nAvailableBuffIndex >= 0);
     
   buffTripleContainer[nWritingBuffIndex].SetState(cs_AvailableForNextWriting);
     
-  // update state matrix
-  nAvailableBuffIndex = nWritingBuffIndex;   
-    
-  buffTripleContainer[nAvailableBuffIndexPre].SetState(cs_LockedForWriting);
-  nWritingBuffIndex = nAvailableBuffIndexPre;                        
+  buffTripleContainer[nAvailableBuffIndex].SetState(cs_LockedForWriting);
+  nWritingBuffIndex = nAvailableBuffIndex;                        
     
   return buffTripleContainer[nWritingBuffIndex].GetBuffer();
 }
 
 int CTripleBufferManager::GetIndexForFirstAvailableForReading() {
+  std::lock_guard<decltype(itsCMutex)> lock(itsCMutex);
   for (int i=0; i<BUFFER_CONTAINER_SIZE; ++i)
   {
     // buffer elemanin state'i available olmali ve okunmak 
@@ -160,6 +154,7 @@ int CTripleBufferManager::GetIndexForFirstAvailableForReading() {
 }
 
 int CTripleBufferManager::GetIndexForFirstAvailableForWriting() {
+  std::lock_guard<decltype(itsCMutex)> lock(itsCMutex);
   for (int i=0; i<BUFFER_CONTAINER_SIZE; ++i)
   {
     // buffer elemanin state'i available olmali ve okunmak 
